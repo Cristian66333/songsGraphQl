@@ -51,6 +51,7 @@ let saveAuthor =async (parent,args,contextValue,info)=>{
 }
 
 let saveSong = async(parent,args,contextValue,info)=>{
+
     try {
         const author = await Author.findById(args.idAuthor)
         const datos = {"number":args.number, "title":args.title, "duration":args.duration}
@@ -100,6 +101,7 @@ let updateAuthor = async (parent,args,contextValue,info)=>{
 let updateSong=async (parent,args,contextValue,info)=>{
     try{
         const song = await Song.findById(args.idSong)
+        console.log(args)
         args.number!=null?song.number = args.number:0;
         args.title!=null?song.title = args.title:0;
         args.duration!=null?song.duration = args.duration:0;
@@ -119,7 +121,7 @@ let updateSong=async (parent,args,contextValue,info)=>{
 }
 const resolvers = {
     Query:{
-        songs:async ()=> await Song.find({}),
+        songs:async ()=> await Song.find({}).populate('author'),
         authors:async ()=> await Author.find({}).populate('songs'),
         findSongById:async(parent,args,contextValue,info)=>await Song.findById(args.id).populate('author'),
         saveAuthor:saveAuthor,
