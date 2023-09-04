@@ -1,9 +1,9 @@
-import {Author}  from './models/Author.js'
-import {Song}  from './models/Song.js'
+import { Author } from './models/Author.js'
+import { Song } from './models/Song.js'
 import './drivers/connect-db.js'
 import { ApolloServer } from '@apollo/server'
 
-import {startStandaloneServer} from '@apollo/server/standalone'
+import { startStandaloneServer } from '@apollo/server/standalone'
 
 const typeDefs = `
     scalar GraphQLDateTime
@@ -26,35 +26,42 @@ const typeDefs = `
     type Query{
         songs:[Song],
         authors:[Author],
-        findSongById(id:String!):Song,
+        findSongById(id:Int!):Song,
         saveAuthor(id:String!,name:String!, birthday:GraphQLDateTime!):Author,
         saveSong(number:Int!,title:String!, duration:Float!,idAuthor:String!):Song,
         deleteAuthor(idAuthor:String!):Author,
-        deleteSong(idSong:String!):Song
+        deleteSong(idSong:String!):Song,
+        findAuthorById(id:String!):Author
     }
     type Mutation{
         updateAuthor(id:String,name:String,birthday:GraphQLDateTime, idAuthor:String!):Author,
         updateSong(number:Int,title:String,duration:Float,idAuthor:String,idSong:String!):Song
     }
 `
-let saveAuthor =async (parent,args,contextValue,info)=>{
+let saveAuthor = async (parent, args, contextValue, info) => {
     try {
-        const datos = {"id":args.id, "name":args.name, "birthday":args.birthday}
-        const author = new Author(datos)
-        const data = await author.save()
-        return data
+        const existingAuthor = await findAuthorById(parent, args, contextValue, info);
+
+        if (existingAuthor == null) {
+            const datos = { "id": args.id, "name": args.name, "birthday": args.birthday }
+            const author = new Author(datos)
+            const data = await author.save()
+            return data
+        } else {
+            return null
+        }
     } catch (error) {
         console.log(error)
         return null
     }
-    
+
 }
 
-let saveSong = async(parent,args,contextValue,info)=>{
+let saveSong = async (parent, args, contextValue, info) => {
 
     try {
         const author = await Author.findById(args.idAuthor)
-        const datos = {"number":args.number, "title":args.title, "duration":args.duration}
+        const datos = { "number": args.number, "title": args.title, "duration": args.duration }
         const song = new Song(datos)
         song.author = args.idAuthor
         author.songs.push(song)
@@ -67,7 +74,7 @@ let saveSong = async(parent,args,contextValue,info)=>{
     }
 }
 
-let deleteAuthor = async (parent,args,contextValue,info)=>{
+let deleteAuthor = async (parent, args, contextValue, info) => {
     try {
         const data = await Author.findByIdAndDelete(args.idAuthor)
         return data
@@ -76,7 +83,7 @@ let deleteAuthor = async (parent,args,contextValue,info)=>{
         return null
     }
 }
-let deleteSong = async(parent,args,contextValue,info)=>{
+let deleteSong = async (parent, args, contextValue, info) => {
     try {
         const data = await Song.findByIdAndDelete(args.idSong)
         return data
@@ -85,62 +92,81 @@ let deleteSong = async(parent,args,contextValue,info)=>{
         return null
     }
 }
-let updateAuthor = async (parent,args,contextValue,info)=>{
-    try{
+let updateAuthor = async (parent, args, contextValue, info) => {
+    try {
         const author = await Author.findById(args.idAuthor)
-        args.id!=null?author.id = args.id:0;
-        args.name!=null?author.name = args.name:0;
-        args.birthday!=null?author.birthday = args.birthday:0;
+        args.id != null ? author.id = args.id : 0;
+        args.name != null ? author.name = args.name : 0;
+        args.birthday != null ? author.birthday = args.birthday : 0;
         const data = await author.save()
         return data
-    }catch(error){
+    } catch (error) {
         console.log(error)
         return null
     }
 }
-let updateSong=async (parent,args,contextValue,info)=>{
-    try{
+let updateSong = async (parent, args, contextValue, info) => {
+    try {
         const song = await Song.findById(args.idSong)
         console.log(args)
-        args.number!=null?song.number = args.number:0;
-        args.title!=null?song.title = args.title:0;
-        args.duration!=null?song.duration = args.duration:0;
-        args.idAuthor!=null?song.author = args.idAuthor:0;
-        if(args.idAuthor!=null){
+        args.number != null ? song.number = args.number : 0;
+        args.title != null ? song.title = args.title : 0;
+        args.duration != null ? song.duration = args.duration : 0;
+        args.idAuthor != null ? song.author = args.idAuthor : 0;
+        if (args.idAuthor != null) {
             const author = await Author.findById(args.idAuthor)
             author.songs.push(song)
             await author.save()
         }
-        
+
         const data = await song.save()
         return data
-    }catch(error){
+    } catch (error) {
         console.log(error)
         return null
     }
 }
+let findAuthorById = async (parent, args, contextValue, info) => {
+    try {
+        const author = await Author.findOne({ id: args.id });
+        return author;
+    } catch (error) {
+        console.log(error);
+        return null;
+    }
+}
+let findSongById = async (parent, args, contextValue, info) => {
+    try {
+        const song = await Song.findOne({ number: args.id });
+        return song;
+    } catch (error) {
+        console.log(error);
+        return null;
+    }
+}
 const resolvers = {
-    Query:{
-        songs:async ()=> await Song.find({}).populate('author'),
-        authors:async ()=> await Author.find({}).populate('songs'),
-        findSongById:async(parent,args,contextValue,info)=>await Song.findById(args.id).populate('author'),
-        saveAuthor:saveAuthor,
-        saveSong:saveSong,
-        deleteAuthor:deleteAuthor,
-        deleteSong,deleteSong
+    Query: {
+        songs: async () => await Song.find({}).populate('author'),
+        authors: async () => await Author.find({}).populate('songs'),
+        findSongById: findSongById,
+        saveAuthor: saveAuthor,
+        saveSong: saveSong,
+        deleteAuthor: deleteAuthor,
+        deleteSong: deleteSong,
+        findAuthorById: findAuthorById
     },
-    Mutation:{
-        updateAuthor:updateAuthor,
-        updateSong:updateSong
+    Mutation: {
+        updateAuthor: updateAuthor,
+        updateSong: updateSong
     }
 }
 
 const server = new ApolloServer({
-    typeDefs,resolvers
+    typeDefs, resolvers
 })
 
-const {url} = await startStandaloneServer(server,{
-    listen : {port:4000}
+const { url } = await startStandaloneServer(server, {
+    listen: { port: 4000 }
 })
 
 console.log(`Server ready at ${url}`)
